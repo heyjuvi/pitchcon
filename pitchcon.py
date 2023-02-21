@@ -188,7 +188,7 @@ def main(args):
     used_keys = list(map(lambda x: getattr(uinput, x), config["Keys"].keys()))
     note_key_tuples = list(map(lambda x: (NOTE_MAP[x[1]], getattr(uinput, x[0])), config["Keys"].items()))
 
-    hopsize = 4096
+    hopsize = 1024
 
     chosen_input = choose_input_device()
 
