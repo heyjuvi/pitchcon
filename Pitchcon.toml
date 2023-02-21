@@ -1,0 +1,9 @@
+[Input]
+samplerate = 44100
+hopsize = 4096
+tolerance = 3
+
+[Keys]
+KEY_LEFT = "C4"
+KEY_RIGHT = "G4"
+KEY_A = "A4"

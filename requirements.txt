@@ -1,0 +1,5 @@
+pyaudio==0.2.13
+aubio==0.4.9
+python-uinput==0.11.2
+numpy==1.24.2
+toml==0.10.2
