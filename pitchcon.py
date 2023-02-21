@@ -7,11 +7,11 @@ import sys
 import uinput
 import toml
 
-CHANNELS                = 1
-FORMAT                  = pyaudio.paFloat32
-METHOD                  = "default"
+CHANNELS = 1
+FORMAT = pyaudio.paFloat32
+METHOD = "default"
 
-note_map = {
+NOTE_MAP = {
     "C0": 16.35,
     "C#0": 17.32,
     "Db0": 17.32,
@@ -167,40 +167,55 @@ note_map = {
     "B8": 7902.13
 }
 
+pA = pyaudio.PyAudio()
+
+def choose_input_device():
+    info = pA.get_host_api_info_by_index(0)
+    numdevices = info.get('deviceCount')
+
+    devices_list_str = ""
+    for i in range(0, numdevices):
+        if pA.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels') > 0:
+            devices_list_str += "{}: {}\n".format(i, pA.get_device_info_by_host_api_device_index(0, i)["name"])
+
+    print("Choose input device:")
+    print(devices_list_str)
+
+    return int(input("Which one? "))
+
 def main(args):
     config = toml.load("Pitchcon.toml")
     used_keys = list(map(lambda x: getattr(uinput, x), config["Keys"].keys()))
-    note_key_tuples = list(map(lambda x: (note_map[x[1]], getattr(uinput, x[0])), config["Keys"].items()))
+    note_key_tuples = list(map(lambda x: (NOTE_MAP[x[1]], getattr(uinput, x[0])), config["Keys"].items()))
 
-    pA = pyaudio.PyAudio()
+    hopsize = 4096
+
+    chosen_input = choose_input_device()
 
     mic = pA.open(format=FORMAT,
                   channels=CHANNELS,
                   rate=config["Input"]["samplerate"],
                   input=True,
-                  frames_per_buffer=config["Input"]["hopsize"])
+                  input_device_index=chosen_input,
+                  frames_per_buffer=hopsize)
 
     pDetection = aubio.pitch(METHOD,
-                             2 * config["Input"]["hopsize"],
-                             config["Input"]["hopsize"],
+                             2 * hopsize,
+                             hopsize,
                              config["Input"]["samplerate"])
     pDetection.set_unit("Hz")
-
     pDetection.set_silence(-40)
 
     with uinput.Device(used_keys) as device:
         while True:
-            data = mic.read(config["Input"]["hopsize"])
+            data = mic.read(hopsize)
             samples = np.fromstring(data, dtype=aubio.float_type)
 
             pitch = pDetection(samples)[0]
             volume = np.sum(samples**2) / len(samples)
 
-            print(pitch)
-            print(volume)
             for note, key in note_key_tuples:
                 if abs(pitch - note) < config["Input"]["tolerance"]:
-                    print(key)
                     device.emit_click(key)
         
 if __name__ == "__main__":

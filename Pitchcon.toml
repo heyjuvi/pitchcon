@@ -1,7 +1,6 @@
 [Input]
 samplerate = 44100
-hopsize = 4096
-tolerance = 3
+tolerance = 2
 
 [Keys]
 KEY_LEFT = "C4"
