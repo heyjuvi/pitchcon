@@ -4,6 +4,7 @@ import aubio
 import numpy as np
 import pyaudio
 import sys
+import time
 import uinput
 import toml
 import argparse
@@ -193,7 +194,7 @@ def main(args):
     print(parsed_args)
 
     pa = pyaudio.PyAudio()
-
+    
     config = toml.load("Pitchcon.toml")
     used_keys = list(map(lambda x: getattr(uinput, x), config["Keys"].keys()))
     note_key_tuples = list(map(lambda x: (NOTE_MAP[x[1]], getattr(uinput, x[0])), config["Keys"].items()))
@@ -222,17 +223,25 @@ def main(args):
     pDetection.set_unit("Hz")
     pDetection.set_silence(-40)
 
+    last_time = time.time()
     with uinput.Device(used_keys) as device:
         while True:
+            current_time = time.time()
+
             data = mic.read(hopsize)
             samples = np.fromstring(data, dtype=aubio.float_type)
 
             pitch = pDetection(samples)[0]
             volume = np.sum(samples**2) / len(samples)
 
-            for note, key in note_key_tuples:
-                if abs(pitch - note) < config["Input"]["tolerance"]:
-                    device.emit_click(key)
+            if current_time - last_time > config["Input"]["clickinterval"] / 1000:
+                for note, key in note_key_tuples:
+                    if abs(pitch - note) < config["Input"]["tolerance"]:
+                        device.emit(key, 1)
+                        time.sleep(config["Input"]["clickinterval"] / 5000)
+                        device.emit(key, 0)
+
+                last_time = current_time
         
 if __name__ == "__main__":
     main(sys.argv)

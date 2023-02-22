@@ -1,8 +1,10 @@
 [Input]
 samplerate = 44100
-tolerance = 2
+tolerance = 3
+clickinterval = 100
 
 [Keys]
-KEY_LEFT = "C4"
-KEY_RIGHT = "G4"
-KEY_A = "A4"
+KEY_LEFT = "A4"
+KEY_RIGHT = "B4"
+KEY_UP = "C4"
+KEY_DOWN = "E4"
