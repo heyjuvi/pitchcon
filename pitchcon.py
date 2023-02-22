@@ -6,6 +6,7 @@ import pyaudio
 import sys
 import uinput
 import toml
+import argparse
 
 CHANNELS = 1
 FORMAT = pyaudio.paFloat32
@@ -167,16 +168,20 @@ NOTE_MAP = {
     "B8": 7902.13
 }
 
-pA = pyaudio.PyAudio()
+def handle_args(args):
+    parser = argparse.ArgumentParser(prog="Pitchcon", description="Pitchcon Simple tool using uinput to create an input device driven by pitch")
+    parser.add_argument("-c", "--choose-input", help="Show a prompt to choose an input device", action="store_true")
 
-def choose_input_device():
-    info = pA.get_host_api_info_by_index(0)
+    return parser.parse_args(args)
+
+def choose_input_device(pa):
+    info = pa.get_host_api_info_by_index(0)
     numdevices = info.get('deviceCount')
 
     devices_list_str = ""
     for i in range(0, numdevices):
-        if pA.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels') > 0:
-            devices_list_str += "{}: {}\n".format(i, pA.get_device_info_by_host_api_device_index(0, i)["name"])
+        if pa.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels') > 0:
+            devices_list_str += "{}: {}\n".format(i, pa.get_device_info_by_host_api_device_index(0, i)["name"])
 
     print("Choose input device:")
     print(devices_list_str)
@@ -184,20 +189,31 @@ def choose_input_device():
     return int(input("Which one? "))
 
 def main(args):
+    parsed_args = handle_args(args[1:])
+    print(parsed_args)
+
+    pa = pyaudio.PyAudio()
+
     config = toml.load("Pitchcon.toml")
     used_keys = list(map(lambda x: getattr(uinput, x), config["Keys"].keys()))
     note_key_tuples = list(map(lambda x: (NOTE_MAP[x[1]], getattr(uinput, x[0])), config["Keys"].items()))
 
     hopsize = 1024
 
-    chosen_input = choose_input_device()
-
-    mic = pA.open(format=FORMAT,
-                  channels=CHANNELS,
-                  rate=config["Input"]["samplerate"],
-                  input=True,
-                  input_device_index=chosen_input,
-                  frames_per_buffer=hopsize)
+    if parsed_args.choose_input:
+        chosen_input = choose_input_device(pa)
+        mic = pa.open(format=FORMAT,
+                      channels=CHANNELS,
+                      rate=config["Input"]["samplerate"],
+                      input=True,
+                      input_device_index=chosen_input,
+                      frames_per_buffer=hopsize)
+    else:
+        mic = pa.open(format=FORMAT,
+                      channels=CHANNELS,
+                      rate=config["Input"]["samplerate"],
+                      input=True,
+                      frames_per_buffer=hopsize)
 
     pDetection = aubio.pitch(METHOD,
                              2 * hopsize,
