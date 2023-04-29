@@ -223,6 +223,8 @@ def main(args):
     pDetection.set_unit("Hz")
     pDetection.set_silence(-40)
 
+    last_down = False
+    last_key = None
     last_time = time.time()
     with uinput.Device(used_keys) as device:
         while True:
@@ -235,11 +237,22 @@ def main(args):
             volume = np.sum(samples**2) / len(samples)
 
             if current_time - last_time > config["Input"]["clickinterval"] / 1000:
+                hit_note = False
                 for note, key in note_key_tuples:
                     if abs(pitch - note) < config["Input"]["tolerance"]:
-                        device.emit(key, 1)
-                        time.sleep(config["Input"]["clickinterval"] / 5000)
-                        device.emit(key, 0)
+                        if not last_down:
+                            last_key = key
+                            device.emit(key, 1)
+                            time.sleep(config["Input"]["clickinterval"] / 5000)
+                            current_time = time.time()
+
+                        hit_note = True
+
+                if not hit_note and last_down:
+                    last_down = False
+                    device.emit(last_key, 0)
+                elif hit_note:
+                    last_down = True
 
                 last_time = current_time
         
